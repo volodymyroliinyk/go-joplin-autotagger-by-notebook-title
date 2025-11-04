@@ -12,6 +12,7 @@ import (
     "time"
 )
 
+// TODO:[1] README.md.
 // TODO:[1] unit testing.
 // TODO:[1]: run on laptop start after Joplin Desktop. https://gemini.google.com/app/fc2ff7e67b8324e
 
