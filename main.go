@@ -12,6 +12,9 @@ import (
     "time"
 )
 
+// TODO:[1] unit testing.
+// TODO:[1]: run on laptop start after Joplin Desktop. https://gemini.google.com/app/fc2ff7e67b8324e
+
 // === CONFIGURATION (MUST REPLACE) ===
 
 // API URL of your local Joplin instance (default 41184)
