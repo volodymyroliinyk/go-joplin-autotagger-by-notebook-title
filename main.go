@@ -8,14 +8,12 @@ import (
     "log"
     "net/http"
     "net/url"
+    "os"
     "strings"
     "time"
 )
 
-// TODO:[1] README.md.
 // TODO:[1] unit testing.
-// TODO:[1]: run on laptop start after Joplin Desktop. https://gemini.google.com/app/fc2ff7e67b8324e
-
 // === CONFIGURATION (MUST REPLACE) ===
 
 // API URL of your local Joplin instance (default 41184)
@@ -23,8 +21,6 @@ const JOPLIN_API_BASE = "http://localhost:41184"
 
 // Web Clipper API token found in Joplin settings
 // Paste your token here or use an environment variable.
-
-const JOPLIN_TOKEN = "YOUR_JOPLIN_API_TOKEN"
 
 // PREFIX FOR ALL TAGS CREATED BASED ON NOTEBOOK NAMES
 const TAG_PREFIX = "notebook."
@@ -72,14 +68,14 @@ func bufferToReadCloser(buf *bytes.Buffer) io.ReadCloser {
 }
 
 // makeAPIRequest makes an HTTP request with authentication and retry logic
-func makeAPIRequest(method, endpoint string, body *bytes.Buffer) ([]byte, error) {
+func makeAPIRequest(method, endpoint string, body *bytes.Buffer, token string) ([]byte, error) {
     u, err := url.Parse(JOPLIN_API_BASE + endpoint)
     if err != nil {
         return nil, fmt.Errorf("URL parsing error: %w", err)
     }
 
     q := u.Query()
-    q.Set("token", JOPLIN_TOKEN)
+    q.Set("token", token)
     u.RawQuery = q.Encode()
     fullURL := u.String()
 
@@ -126,7 +122,7 @@ func makeAPIRequest(method, endpoint string, body *bytes.Buffer) ([]byte, error)
 }
 
 // fetchAll fetches all elements from the paginated endpoint
-func fetchAll[T any](endpoint string) ([]T, error) {
+func fetchAll[T any](endpoint string, token string) ([]T, error) {
     var allItems []T
     page := 1
     limit := 100
@@ -142,7 +138,7 @@ func fetchAll[T any](endpoint string) ([]T, error) {
         // Since `endpoint` already contains initial fields, we only add pagination
         pagedEndpoint := fmt.Sprintf("%s%d&page=%d", baseEndpoint, limit, page)
 
-        respBody, err := makeAPIRequest("GET", pagedEndpoint, nil)
+        respBody, err := makeAPIRequest("GET", pagedEndpoint, nil, token)
         if err != nil {
             return nil, err
         }
@@ -175,13 +171,14 @@ func main() {
     fmt.Println("=== START: Automatically Tagging Joplin Notes ===")
     fmt.Printf("The tag prefix to use: %s\n", TAG_PREFIX)
 
-    if JOPLIN_TOKEN == "YOUR_JOPLIN_API_TOKEN" {
-        log.Fatal("ERROR: No JOPLIN TOKEN installed. Set it to the JOPLIN TOKEN constant.")
+    token := os.Getenv("JOPLIN_TOKEN")
+    if token == "" {
+        log.Fatal("ERROR: Environment variable JOPLIN_TOKEN is not set or empty.")
     }
 
     // 1. GETTING NOTEBOOKS
     fmt.Println("\n--- 1. Downloading all notebooks and collecting unique titles ---")
-    folders, err := fetchAll[Folder]("/folders?fields=id,title")
+    folders, err := fetchAll[Folder]("/folders?fields=id,title", token)
     if err != nil {
         log.Fatalf("Critical error when loading notebooks: %v", err)
     }
@@ -203,7 +200,7 @@ func main() {
 
     // 2. OBTAINING TAGS
     fmt.Println("\n--- 2. Loading existing tags ---")
-    existingTags, err := fetchAll[Tag]("/tags?fields=id,title")
+    existingTags, err := fetchAll[Tag]("/tags?fields=id,title", token)
     if err != nil {
         log.Fatalf("Critical error while loading tags: %v", err)
     }
@@ -235,7 +232,7 @@ func main() {
         newTagData := map[string]string{"title": originalName}
         body, _ := json.Marshal(newTagData)
 
-        respBody, err := makeAPIRequest("POST", "/tags", bytes.NewBuffer(body))
+        respBody, err := makeAPIRequest("POST", "/tags", bytes.NewBuffer(body), token)
 
         if err != nil {
             // The log here will show that the tag already exists (if an error from the API)
@@ -263,7 +260,7 @@ func main() {
     // 4. RECEIVING NOTES
     fmt.Println("\n--- 4. Download all notes ---")
     // The tags field is no longer requested to avoid SQLITE_ERROR
-    notes, err := fetchAll[Note]("/notes?fields=id,title,parent_id")
+    notes, err := fetchAll[Note]("/notes?fields=id,title,parent_id", token)
     if err != nil {
         log.Fatalf("Critical error while loading notes: %v", err)
     }
@@ -299,7 +296,7 @@ func main() {
         tagNoteData := map[string]string{"id": note.ID}
         body, _ := json.Marshal(tagNoteData)
 
-        _, err := makeAPIRequest("POST", taggingEndpoint, bytes.NewBuffer(body))
+        _, err := makeAPIRequest("POST", taggingEndpoint, bytes.NewBuffer(body), token)
         if err != nil {
             // If tagging failed (for example, a network error), log in and continue.
             log.Printf("Error tagging note '%s': %v. We continue.", note.Title, err)

@@ -34,14 +34,16 @@
     - Open the main.go file and replace the stub with your real token:
     ```
     const JOPLIN_API_BASE = "http://localhost:41184"
-    const JOPLIN_TOKEN = "YOUR_COPIED_API_TOKEN"
     ```
 3. Launch
     - Make sure you have Go (Golang) installed.
     - Save the file as main.go.
     - Open a terminal in the directory with the file.
     - Run the script: \
-      ```go run main.go```
+      ```
+      export JOPLIN_TOKEN="joplin-token";
+      go run main.go;
+      ```
 
 TODO:
 
