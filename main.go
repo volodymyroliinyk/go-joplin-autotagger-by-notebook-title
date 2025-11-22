@@ -287,7 +287,7 @@ func main() {
         }
 
         // 3. Apply the tag.
-        fmt.Printf("... Tagging note: '%s' with ID tag '%s'\n", note.Title, requiredTagID)
+        fmt.Printf("... Tagging note: '%s' with ID tag '%s'\n", note.ID, requiredTagID)
 
         // Endpoint for binding a tag to a note: POST /tags/:tagId/notes
         taggingEndpoint := fmt.Sprintf("/tags/%s/notes", requiredTagID)
